@@ -27,6 +27,7 @@ export default function AdminSettings() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [storeName, setStoreName] = useState('Mamajula Perfumaria');
+  const [contactPhone, setContactPhone] = useState('');
   const [saved, setSaved] = useState(false);
 
   // WhatsApp state
@@ -98,6 +99,12 @@ export default function AdminSettings() {
   useEffect(() => {
     if (tab === 'orders') loadOrders();
     if (tab === 'integrations') { loadWaConfig(); loadShopeeConfig(); loadMlConfig(); }
+    if (tab === 'store') {
+      (async () => {
+        const { data } = await supabase.from('store_settings').select('contact_phone').eq('id', 1).maybeSingle();
+        if (data?.contact_phone) setContactPhone(data.contact_phone);
+      })();
+    }
   }, [tab, loadOrders, loadWaConfig]);
 
   // Poll for connection status when QR is shown
@@ -122,7 +129,8 @@ export default function AdminSettings() {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    await supabase.from('store_settings').upsert({ id: 1, contact_phone: contactPhone });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -491,8 +499,9 @@ export default function AdminSettings() {
               <input className="input" placeholder="contato@mamajula.com" />
             </div>
             <div>
-              <label className="label">WhatsApp</label>
-              <input className="input" placeholder="(11) 99999-9999" />
+              <label className="label">WhatsApp (botão flutuante)</label>
+              <input className="input" placeholder="5511999999999" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+              <p className="text-xs text-neutral-400 mt-1">Digite no formato internacional, só números. Ex: 5511999999999</p>
             </div>
             <div>
               <label className="label">Instagram</label>

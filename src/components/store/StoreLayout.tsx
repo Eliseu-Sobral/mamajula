@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import StoreHeader from '@/components/store/StoreHeader';
 import StoreFooter from '@/components/store/StoreFooter';
 import CartDrawer from '@/components/store/CartDrawer';
+import FloatingWhatsApp from '@/components/store/FloatingWhatsApp';
 
 export default function StoreLayout({ children }: { children: ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export default function StoreLayout({ children }: { children: ReactNode }) {
       <main className="flex-1">{children}</main>
       <StoreFooter />
       <CartDrawer />
+      <FloatingWhatsApp />
     </div>
   );
 }
