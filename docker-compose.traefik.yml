@@ -4,62 +4,20 @@ services:
     container_name: traefik
     restart: unless-stopped
 
-    # Segurança: roda como usuário não-root (UID 65532 = nobody, com capability net_bind_service)
-    user: "65532:65532"
-
     ports:
       - "80:80"
       - "443:443"
-      # Dashboard (temporariamente ativado — SÓ ACESSÍVEL NO PRÓPRIO SERVIDOR via 127.0.0.1:8080)
-      # Use no servidor: 'curl -s http://127.0.0.1:8080/api/rawdata | jq' para ver routers/services.
-      # Ou faça port-forward no SSH: 'ssh -L 8080:127.0.0.1:8080 usuario@servidor' e abra no navegador local.
+      # Dashboard TEMPORARIO (acesso apenas local ao servidor)
+      # curl -s http://127.0.0.1:8080/api/http/routers
+      # ou port-forward SSH: ssh -L 8080:127.0.0.1:8080 usuario@servidor
       - "127.0.0.1:8080:8080"
 
     volumes:
-      # Monta socket Docker (só leitura) para Traefik descobrir serviços automaticamente
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      # Volume persistente para os certificados emitidos (Let's Encrypt ACME)
       - "traefik-acme:/letsencrypt"
 
     networks:
       - mamajula
-
-    labels:
-      # ---- Catch-all de DIAGNÓSTICO (404 explicativo) ----
-      # Mostra um JSON com o Host que chegou, entrypoint, IP do cliente etc. em QUALQUER host que não tenha router configurado.
-      # Prioridade MUITO BAIXA (-10) para ser o último a pegar.
-      - "traefik.enable=true"
-      - "traefik.docker.network=mamajula"
-
-      - "traefik.http.routers.traefik-debug-http.entrypoints=web"
-      - "traefik.http.routers.traefik-debug-http.rule=HostRegexp(`{host:.+}`)"
-      - "traefik.http.routers.traefik-debug-http.priority=-10"
-      - "traefik.http.routers.traefik-debug-http.service=traefik-debug-service"
-
-      - "traefik.http.routers.traefik-debug-https.entrypoints=websecure"
-      - "traefik.http.routers.traefik-debug-https.rule=HostRegexp(`{host:.+}`)"
-      - "traefik.http.routers.traefik-debug-https.priority=-10"
-      - "traefik.http.routers.traefik-debug-https.tls=true"
-      - "traefik.http.routers.traefik-debug-https.tls.certresolver=leresolver"
-      - "traefik.http.routers.traefik-debug-https.tls.domains[0].main=*.mamajula.com.br"
-      - "traefik.http.routers.traefik-debug-https.service=traefik-debug-service"
-
-      # Serviço: whoami (echo das requests)
-      - "traefik.http.services.traefik-debug-service.loadbalancer.server.port=80"
-      - "traefik.http.services.traefik-debug-service.loadbalancer.server.scheme=http"
-
-  # ---------- Serviço whoami (echo de requests para diagnóstico 404) ----------
-  whoami:
-    image: traefik/whoami:v1.10
-    container_name: traefik-whoami
-    restart: unless-stopped
-    user: "65532:65532"
-    networks:
-      - mamajula
-    expose:
-      - "80"
-    labels:
-      - "traefik.enable=false"
 
     command:
       # ===== Globais =====
@@ -67,7 +25,7 @@ services:
       - "--global.sendAnonymousUsage=false"
       - "--global.checkNewVersion=false"
 
-      # ===== Dashboard / API (TEMPORÁRIO, só 127.0.0.1:8080) =====
+      # ===== Dashboard / API =====
       - "--api=true"
       - "--api.dashboard=true"
       - "--api.insecure=true"
@@ -88,17 +46,35 @@ services:
       - "--providers.docker.network=mamajula"
       - "--providers.docker.swarmmode=false"
 
-      # ===== Certificate Resolver: Let's Encrypt (HTTP challenge) — NOME: leresolver =====
+      # ===== Certificate Resolver: Let's Encrypt — NOME: leresolver =====
       - "--certificatesresolvers.leresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web"
-      # E-mail para avisos de expiração de certificado (SUBSTITUA pelo seu e-mail real)
       - "--certificatesresolvers.leresolver.acme.email=admin@mamajula.com.br"
       - "--certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json"
-      # Staging (para testar sem quebrar rate limit — mude para false quando for produção real)
-      # - "--certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+
+    labels:
+      # ---- Catch-all de DIAGNÓSTICO: quem bater aqui vê um whoami com o host que chegou ----
+      - "traefik.enable=true"
+      - "traefik.docker.network=mamajula"
+
+      - "traefik.http.routers.traefik-debug-http.entrypoints=web"
+      - "traefik.http.routers.traefik-debug-http.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.traefik-debug-http.priority=-10"
+      - "traefik.http.routers.traefik-debug-http.service=traefik-debug-service"
+
+      - "traefik.http.routers.traefik-debug-https.entrypoints=websecure"
+      - "traefik.http.routers.traefik-debug-https.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.traefik-debug-https.priority=-10"
+      - "traefik.http.routers.traefik-debug-https.tls=true"
+      - "traefik.http.routers.traefik-debug-https.tls.certresolver=leresolver"
+      - "traefik.http.routers.traefik-debug-https.tls.domains[0].main=*.mamajula.com.br"
+      - "traefik.http.routers.traefik-debug-https.service=traefik-debug-service"
+
+      - "traefik.http.services.traefik-debug-service.loadbalancer.server.port=80"
+      - "traefik.http.services.traefik-debug-service.loadbalancer.server.scheme=http"
 
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider --no-proxy http://127.0.0.1:80/ping || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider --no-proxy http://127.0.0.1:8080/api/version || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -110,11 +86,38 @@ services:
         max-size: "10m"
         max-file: "5"
 
+  # Serviço whoami para o catch-all de diagnóstico
+  whoami:
+    image: traefik/whoami:v1.10
+    container_name: traefik-whoami
+    restart: unless-stopped
+    networks:
+      - mamajula
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=false"
+
 volumes:
   traefik-acme:
     name: traefik-acme
 
+# 🔑 REDE mamajula CRIADA AQUI, DENTRO DO STACK (não mais external!)
+#    Driver bridge garantido, attachable, DHCP do Docker alocando IPv4/Gateway/MAC.
+#    DEPOIS que o stack do traefik subir, o stack da aplicação (docker-compose.yml)
+#    vai usar essa mesma rede como "external: true, name: mamajula".
 networks:
   mamajula:
-    external: true
     name: mamajula
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: "br-mamajula"
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+    attachable: true
+    internal: false
+    # Descomente abaixo se precisar de range fixo (raro), senão deixe o Docker decidir:
+    # ipam:
+    #   config:
+    #     - subnet: "172.28.0.0/16"
+    #       gateway: "172.28.0.1"

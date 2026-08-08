@@ -10,9 +10,6 @@ services:
     container_name: mamajula-app
     restart: unless-stopped
 
-    # Segurança: rodar como usuário não-root do nginx (uid 101)
-    user: "101:101"
-
     networks:
       - mamajula
 
@@ -21,7 +18,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 20s
 
     logging:
       driver: "json-file"
@@ -32,27 +29,29 @@ services:
     labels:
       # ---- Traefik habilitado para esse serviço ----
       - "traefik.enable=true"
-      # ---- Liga ao entrypoint websecure (HTTPS :443) ----
       - "traefik.docker.network=mamajula"
+
+      # ===== Router HTTPS =====
       - "traefik.http.routers.mamajula-https.entrypoints=websecure"
       - "traefik.http.routers.mamajula-https.rule=Host(`teste.mamajula.com.br`)"
       - "traefik.http.routers.mamajula-https.tls=true"
       - "traefik.http.routers.mamajula-https.tls.certresolver=leresolver"
       - "traefik.http.routers.mamajula-https.tls.domains[0].main=teste.mamajula.com.br"
       - "traefik.http.routers.mamajula-https.service=mamajula-service"
-      - "traefik.http.routers.mamajula-https.priority=100"
+      - "traefik.http.routers.mamajula-https.priority=1000"
 
-      # ---- Redireciona HTTP -> HTTPS (entrypoint web :80) ----
+      # ===== Router HTTP -> redirect 301 HTTPS =====
       - "traefik.http.routers.mamajula-http.entrypoints=web"
       - "traefik.http.routers.mamajula-http.rule=Host(`teste.mamajula.com.br`)"
       - "traefik.http.routers.mamajula-http.middlewares=mamajula-redirect"
+      - "traefik.http.routers.mamajula-http.priority=1000"
       - "traefik.http.middlewares.mamajula-redirect.redirectscheme.scheme=https"
       - "traefik.http.middlewares.mamajula-redirect.redirectscheme.permanent=true"
 
-      # ---- Aponta para a porta 80 do nginx do container ----
+      # ===== Serviço: porta 80 do nginx =====
       - "traefik.http.services.mamajula-service.loadbalancer.server.port=80"
       - "traefik.http.services.mamajula-service.loadbalancer.server.scheme=http"
-      # Evita timeout em build lento (se precisar aumentar)
+      - "traefik.http.services.mamajula-service.loadbalancer.passHostHeader=true"
       - "traefik.http.services.mamajula-service.loadbalancer.server.transport.respondingTimeouts.readTimeout=60"
 
 networks:
