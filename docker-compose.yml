@@ -29,7 +29,7 @@ services:
     labels:
       # ---- Traefik habilitado para esse serviço ----
       - "traefik.enable=true"
-      - "traefik.docker.network=mamajula"
+      - "traefik.docker.network=network_public"
 
       # ===== Router HTTPS =====
       - "traefik.http.routers.mamajula-https.entrypoints=websecure"
@@ -56,15 +56,9 @@ services:
       - "traefik.http.services.mamajula-service.loadbalancer.server.transport.respondingTimeouts.readTimeout=60"
 
 networks:
-  # 🔑 REDE mamajula: agora o STACK DA APLICAÇÃO TAMBÉM cria se não existir!
-  #    Não precisa mais criar no Portainer manualmente. Não precisa mais de external.
-  #    Qualquer stack que subir primeiro cria a rede; o outro conecta.
+  # 🔑 Usa a rede do seu traefik antigo (já existente, criada manualmente/fora do compose).
+  #    Declaramos SOMENTE como external=true + name, para o Compose não tentar recriar
+  #    (evita o erro "has incorrect label com.docker.compose.network set to ''").
   network_public:
+    external: true
     name: network_public
-    driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: "br-mamajula"
-      com.docker.network.bridge.enable_icc: "true"
-      com.docker.network.bridge.enable_ip_masquerade: "true"
-    attachable: true
-    internal: false
