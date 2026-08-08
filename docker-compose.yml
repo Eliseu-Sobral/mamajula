@@ -52,6 +52,8 @@ services:
       # ---- Aponta para a porta 80 do nginx do container ----
       - "traefik.http.services.mamajula-service.loadbalancer.server.port=80"
       - "traefik.http.services.mamajula-service.loadbalancer.server.scheme=http"
+      # Evita timeout em build lento (se precisar aumentar)
+      - "traefik.http.services.mamajula-service.loadbalancer.server.transport.respondingTimeouts.readTimeout=60"
 
 networks:
   mamajula:

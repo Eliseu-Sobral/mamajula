@@ -10,8 +10,10 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      # Dashboard (opcional — porta 8080 só acesso localhost. Descomente abaixo para habilitar)
-      # - "127.0.0.1:8080:8080"
+      # Dashboard (temporariamente ativado — SÓ ACESSÍVEL NO PRÓPRIO SERVIDOR via 127.0.0.1:8080)
+      # Use no servidor: 'curl -s http://127.0.0.1:8080/api/rawdata | jq' para ver routers/services.
+      # Ou faça port-forward no SSH: 'ssh -L 8080:127.0.0.1:8080 usuario@servidor' e abra no navegador local.
+      - "127.0.0.1:8080:8080"
 
     volumes:
       # Monta socket Docker (só leitura) para Traefik descobrir serviços automaticamente
@@ -22,16 +24,54 @@ services:
     networks:
       - mamajula
 
+    labels:
+      # ---- Catch-all de DIAGNÓSTICO (404 explicativo) ----
+      # Mostra um JSON com o Host que chegou, entrypoint, IP do cliente etc. em QUALQUER host que não tenha router configurado.
+      # Prioridade MUITO BAIXA (-10) para ser o último a pegar.
+      - "traefik.enable=true"
+      - "traefik.docker.network=mamajula"
+
+      - "traefik.http.routers.traefik-debug-http.entrypoints=web"
+      - "traefik.http.routers.traefik-debug-http.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.traefik-debug-http.priority=-10"
+      - "traefik.http.routers.traefik-debug-http.service=traefik-debug-service"
+
+      - "traefik.http.routers.traefik-debug-https.entrypoints=websecure"
+      - "traefik.http.routers.traefik-debug-https.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.traefik-debug-https.priority=-10"
+      - "traefik.http.routers.traefik-debug-https.tls=true"
+      - "traefik.http.routers.traefik-debug-https.tls.certresolver=leresolver"
+      - "traefik.http.routers.traefik-debug-https.tls.domains[0].main=*.mamajula.com.br"
+      - "traefik.http.routers.traefik-debug-https.service=traefik-debug-service"
+
+      # Serviço: whoami (echo das requests)
+      - "traefik.http.services.traefik-debug-service.loadbalancer.server.port=80"
+      - "traefik.http.services.traefik-debug-service.loadbalancer.server.scheme=http"
+
+  # ---------- Serviço whoami (echo de requests para diagnóstico 404) ----------
+  whoami:
+    image: traefik/whoami:v1.10
+    container_name: traefik-whoami
+    restart: unless-stopped
+    user: "65532:65532"
+    networks:
+      - mamajula
+    expose:
+      - "80"
+    labels:
+      - "traefik.enable=false"
+
     command:
       # ===== Globais =====
-      - "--log.level=INFO"
+      - "--log.level=DEBUG"
       - "--global.sendAnonymousUsage=false"
       - "--global.checkNewVersion=false"
 
-      # ===== Dashboard (desativado por padrão; descomente para habilitar em porta 8080) =====
-      - "--api=false"
-      - "--api.dashboard=false"
-      - "--api.insecure=false"
+      # ===== Dashboard / API (TEMPORÁRIO, só 127.0.0.1:8080) =====
+      - "--api=true"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--api.debug=true"
 
       # ===== Entrypoints =====
       - "--entrypoints.web.address=:80"
@@ -48,14 +88,14 @@ services:
       - "--providers.docker.network=mamajula"
       - "--providers.docker.swarmmode=false"
 
-      # ===== Certificate Resolver: Let's Encrypt (HTTP challenge) =====
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      # ===== Certificate Resolver: Let's Encrypt (HTTP challenge) — NOME: leresolver =====
+      - "--certificatesresolvers.leresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web"
       # E-mail para avisos de expiração de certificado (SUBSTITUA pelo seu e-mail real)
-      - "--certificatesresolvers.letsencrypt.acme.email=admin@mamajula.com.br"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.leresolver.acme.email=admin@mamajula.com.br"
+      - "--certificatesresolvers.leresolver.acme.storage=/letsencrypt/acme.json"
       # Staging (para testar sem quebrar rate limit — mude para false quando for produção real)
-      # - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      # - "--certificatesresolvers.leresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
 
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider --no-proxy http://127.0.0.1:80/ping || exit 1"]
