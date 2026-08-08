@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ShoppingBag, TrendingUp, Save, Store, Bell, MessageCircle, Check, Send, TestTube, QrCode, RefreshCw, Trash2, Wifi, WifiOff, Loader2, ShoppingCart, ExternalLink, Unlink, Tag } from 'lucide-react';
+import { ShoppingBag, TrendingUp, Save, Store, Bell, MessageCircle, Check, Send, TestTube, QrCode, RefreshCw, Trash2, Wifi, WifiOff, Loader2, ShoppingCart, ExternalLink, Unlink, Tag, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { supabase, type Order } from '@/lib/supabase';
 import { formatBRL, formatDate } from '@/lib/format';
+import { generateVAPIDKeys, saveVapidKeys } from '@/lib/push';
 
 type WaStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -71,6 +72,11 @@ export default function AdminSettings() {
   const [mlConnecting, setMlConnecting] = useState(false);
   const [mlMsg, setMlMsg] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
+  const [vapidForm, setVapidForm] = useState({ publicKey: '', privateKey: '', senderEmail: '', senderName: '' });
+  const [vapidLoading, setVapidLoading] = useState(false);
+  const [vapidMsg, setVapidMsg] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [showVapidPrivate, setShowVapidPrivate] = useState(false);
+
   const loadOrders = useCallback(async () => {
     setLoadingOrders(true);
     const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(20);
@@ -96,16 +102,34 @@ export default function AdminSettings() {
     setWaLoading(false);
   }, []);
 
+  const loadVapid = useCallback(async () => {
+    try {
+      const { data } = await supabase
+        .from('store_settings')
+        .select('vapid_public_key, vapid_private_key, push_sender_email, push_sender_name')
+        .eq('id', 1)
+        .maybeSingle();
+      if (data) {
+        setVapidForm({
+          publicKey: data.vapid_public_key || '',
+          privateKey: data.vapid_private_key || '',
+          senderEmail: data.push_sender_email || '',
+          senderName: data.push_sender_name || '',
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     if (tab === 'orders') loadOrders();
-    if (tab === 'integrations') { loadWaConfig(); loadShopeeConfig(); loadMlConfig(); }
+    if (tab === 'integrations') { loadWaConfig(); loadShopeeConfig(); loadMlConfig(); loadVapid(); }
     if (tab === 'store') {
       (async () => {
         const { data } = await supabase.from('store_settings').select('contact_phone').eq('id', 1).maybeSingle();
         if (data?.contact_phone) setContactPhone(data.contact_phone);
       })();
     }
-  }, [tab, loadOrders, loadWaConfig]);
+  }, [tab, loadOrders, loadWaConfig, loadVapid]);
 
   // Poll for connection status when QR is shown
   useEffect(() => {
@@ -133,6 +157,36 @@ export default function AdminSettings() {
     await supabase.from('store_settings').upsert({ id: 1, contact_phone: contactPhone });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleGenerateVapid = async () => {
+    setVapidLoading(true);
+    setVapidMsg(null);
+    try {
+      const keys = await generateVAPIDKeys();
+      setVapidForm((prev) => ({ ...prev, publicKey: keys.publicKey, privateKey: keys.privateKey }));
+      setVapidMsg({ type: 'success', msg: 'Novas chaves VAPID geradas! Clique em Salvar para persistir.' });
+    } catch (err) {
+      setVapidMsg({ type: 'error', msg: 'Erro ao gerar chaves: ' + (err as Error).message });
+    }
+    setVapidLoading(false);
+  };
+
+  const handleSaveVapid = async () => {
+    setVapidLoading(true);
+    setVapidMsg(null);
+    try {
+      await saveVapidKeys({
+        publicKey: vapidForm.publicKey,
+        privateKey: vapidForm.privateKey,
+        senderEmail: vapidForm.senderEmail || undefined,
+        senderName: vapidForm.senderName || undefined,
+      });
+      setVapidMsg({ type: 'success', msg: 'Configurações VAPID salvas com sucesso!' });
+    } catch (err) {
+      setVapidMsg({ type: 'error', msg: 'Erro ao salvar: ' + (err as Error).message });
+    }
+    setVapidLoading(false);
   };
 
   // WhatsApp actions
@@ -686,15 +740,66 @@ export default function AdminSettings() {
               <div className="space-y-3">
                 <div>
                   <label className="label">VAPID Public Key</label>
-                  <input className="input" placeholder="BEl62..." />
+                  <input
+                    className="input"
+                    placeholder="BEl62..."
+                    value={vapidForm.publicKey}
+                    onChange={(e) => setVapidForm({ ...vapidForm, publicKey: e.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="label">VAPID Private Key</label>
-                  <input type="password" className="input" placeholder="••••••••" />
+                  <div className="relative">
+                    <input
+                      type={showVapidPrivate ? 'text' : 'password'}
+                      className="input pr-10"
+                      placeholder="••••••••"
+                      value={vapidForm.privateKey}
+                      onChange={(e) => setVapidForm({ ...vapidForm, privateKey: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowVapidPrivate(!showVapidPrivate)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                    >
+                      {showVapidPrivate ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
-                <button onClick={handleSave} className="btn-primary w-full">
-                  {saved ? <><Check className="w-4 h-4" /> Salvo!</> : <><Save className="w-4 h-4" /> Salvar</>}
-                </button>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">E-mail do remetente</label>
+                    <input
+                      type="email"
+                      className="input"
+                      placeholder="contato@mamajula.com"
+                      value={vapidForm.senderEmail}
+                      onChange={(e) => setVapidForm({ ...vapidForm, senderEmail: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Nome do remetente</label>
+                    <input
+                      className="input"
+                      placeholder="Mamajula Perfumaria"
+                      value={vapidForm.senderName}
+                      onChange={(e) => setVapidForm({ ...vapidForm, senderName: e.target.value })}
+                    />
+                  </div>
+                </div>
+                {vapidMsg && (
+                  <div className={`p-3 rounded-lg text-sm ${vapidMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                    {vapidMsg.msg}
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button onClick={handleGenerateVapid} disabled={vapidLoading} className="btn-secondary flex-1">
+                    {vapidLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><KeyRound className="w-4 h-4" /> Gerar novas chaves VAPID</>}
+                  </button>
+                  <button onClick={handleSaveVapid} disabled={vapidLoading} className="btn-primary flex-1">
+                    {vapidLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Salvar VAPID</>}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

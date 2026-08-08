@@ -1,0 +1,80 @@
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: traefik
+    restart: unless-stopped
+
+    # Segurança: roda como usuário não-root (UID 65532 = nobody, com capability net_bind_service)
+    user: "65532:65532"
+
+    ports:
+      - "80:80"
+      - "443:443"
+      # Dashboard (opcional — porta 8080 só acesso localhost. Descomente abaixo para habilitar)
+      # - "127.0.0.1:8080:8080"
+
+    volumes:
+      # Monta socket Docker (só leitura) para Traefik descobrir serviços automaticamente
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      # Volume persistente para os certificados emitidos (Let's Encrypt ACME)
+      - "traefik-acme:/letsencrypt"
+
+    networks:
+      - traefik-public
+
+    command:
+      # ===== Globais =====
+      - "--log.level=INFO"
+      - "--global.sendAnonymousUsage=false"
+      - "--global.checkNewVersion=false"
+
+      # ===== Dashboard (desativado por padrão; descomente para habilitar em porta 8080) =====
+      - "--api=false"
+      - "--api.dashboard=false"
+      - "--api.insecure=false"
+
+      # ===== Entrypoints =====
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entrypoint.permanent=true"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls.options=default"
+
+      # ===== Provider: Docker =====
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik-public"
+      - "--providers.docker.swarmmode=false"
+
+      # ===== Certificate Resolver: Let's Encrypt (HTTP challenge) =====
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      # E-mail para avisos de expiração de certificado (SUBSTITUA pelo seu e-mail real)
+      - "--certificatesresolvers.letsencrypt.acme.email=admin@mamajula.com.br"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      # Staging (para testar sem quebrar rate limit — mude para false quando for produção real)
+      # - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --no-proxy http://127.0.0.1:80/ping || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  traefik-acme:
+    name: traefik-acme
+
+networks:
+  traefik-public:
+    external: true
+    name: traefik-public

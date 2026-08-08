@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Truck, ShieldCheck, Tag, ArrowRight } from 'lucide-react';
+import { Sparkles, Truck, ShieldCheck, Tag, ArrowRight, Check, X, Loader2, BellOff } from 'lucide-react';
 import { supabase, type Product, type Category } from '@/lib/supabase';
+import { isPushSupported, isSubscribed, subscribeUser, unsubscribeUser, loadPushConfig } from '@/lib/push';
 import ProductCard from '@/components/store/ProductCard';
 
 export default function HomePage() {
   const [featured, setFeatured] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pushState, setPushState] = useState<'idle' | 'loading' | 'subscribed' | 'not-supported' | 'error'>('idle');
+  const [pushMsg, setPushMsg] = useState<string>('');
 
   useEffect(() => {
     (async () => {
@@ -20,6 +23,43 @@ export default function HomePage() {
       setLoading(false);
     })();
   }, []);
+
+  useEffect(() => {
+    (async () => {
+      if (!isPushSupported()) {
+        setPushState('not-supported');
+        return;
+      }
+      try {
+        await loadPushConfig();
+        const subscribed = await isSubscribed();
+        setPushState(subscribed ? 'subscribed' : 'idle');
+      } catch (err) {
+        setPushState('error');
+        setPushMsg('Erro ao verificar inscrição');
+      }
+    })();
+  }, []);
+
+  const handleTogglePush = async () => {
+    if (pushState === 'loading' || pushState === 'not-supported') return;
+    setPushState('loading');
+    setPushMsg('');
+    try {
+      if (pushState === 'subscribed') {
+        await unsubscribeUser();
+        setPushState('idle');
+        setPushMsg('Notificações desativadas');
+      } else {
+        await subscribeUser();
+        setPushState('subscribed');
+        setPushMsg('Notificações ativadas com sucesso!');
+      }
+    } catch (err) {
+      setPushState('error');
+      setPushMsg(err instanceof Error ? err.message : 'Erro ao alterar notificações');
+    }
+  };
 
   return (
     <div className="page-enter">
@@ -148,9 +188,44 @@ export default function HomePage() {
             <p className="text-primary-100 max-w-lg mx-auto mb-6">
               Ative as notificações e seja avisado primeiro quando novos produtos e promoções chegarem.
             </p>
-            <button className="btn-primary bg-white text-primary-700 hover:bg-cream-100">
-              <Sparkles className="w-4 h-4" /> Ativar Notificações
+            <button
+              onClick={handleTogglePush}
+              disabled={pushState === 'loading' || pushState === 'not-supported'}
+              className={`btn-primary inline-flex items-center gap-2 ${
+                pushState === 'subscribed'
+                  ? 'bg-green-500 text-white hover:bg-green-600'
+                  : pushState === 'not-supported'
+                  ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                  : pushState === 'error'
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'bg-white text-primary-700 hover:bg-cream-100'
+              }`}
+            >
+              {pushState === 'loading' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : pushState === 'subscribed' ? (
+                <Check className="w-4 h-4" />
+              ) : pushState === 'not-supported' ? (
+                <BellOff className="w-4 h-4" />
+              ) : pushState === 'error' ? (
+                <X className="w-4 h-4" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              {pushState === 'subscribed'
+                ? 'Inscrição ativada'
+                : pushState === 'not-supported'
+                ? 'Notificações não suportadas'
+                : pushState === 'error'
+                ? pushMsg || 'Erro'
+                : 'Ativar Notificações'}
             </button>
+            {pushMsg && pushState !== 'error' && pushState !== 'loading' && (
+              <p className="mt-3 text-sm text-primary-100">{pushMsg}</p>
+            )}
+            {pushState === 'error' && pushMsg && (
+              <p className="mt-3 text-sm text-red-200">{pushMsg}</p>
+            )}
           </div>
         </div>
       </section>

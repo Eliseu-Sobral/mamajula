@@ -1,15 +1,23 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || '';
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string) || '';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase env vars. Check .env file.');
+let supabaseInstance: SupabaseClient | null = null;
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: true, autoRefreshToken: true },
+  });
+} else {
+  console.error(
+    '[supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
+    'Create a .env file in the project root with both variables. ' +
+    'Supabase features will be unavailable until configured.',
+  );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: { persistSession: true, autoRefreshToken: true },
-});
+export const supabase = supabaseInstance as SupabaseClient;
 
 export type Category = {
   id: string;

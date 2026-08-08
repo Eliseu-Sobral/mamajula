@@ -1,0 +1,44 @@
+# ---- Node / npm / Vite ----
+node_modules
+dist
+dist-ssr
+build
+.cache
+.parcel-cache
+.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Envs / secrets (NÃO vão para imagem) ----
+.env
+.env.*
+!.env.example
+
+# ---- Versionamento ----
+.git
+.gitignore
+.gitattributes
+.github
+.husky
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# ---- Traefik / Docker ----
+acme.json
+letsencrypt/
+traefik-data/
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ---- Outros build/debug ----
+coverage
+coverage-final.json
+.vite
+*.tsbuildinfo
