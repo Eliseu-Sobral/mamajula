@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
 
     networks:
-      - mamajula
+      - network_public
 
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/healthz || exit 1"]
@@ -33,16 +33,17 @@ services:
 
       # ===== Router HTTPS =====
       - "traefik.http.routers.mamajula-https.entrypoints=websecure"
-      - "traefik.http.routers.mamajula-https.rule=Host(`teste.mamajula.com.br`)"
+      - "traefik.http.routers.mamajula-https.rule=Host(`teste.mamajula.com.br`) || Host(`www.teste.mamajula.com.br`)"
       - "traefik.http.routers.mamajula-https.tls=true"
       - "traefik.http.routers.mamajula-https.tls.certresolver=leresolver"
       - "traefik.http.routers.mamajula-https.tls.domains[0].main=teste.mamajula.com.br"
+      - "traefik.http.routers.mamajula-https.tls.domains[0].sans=www.teste.mamajula.com.br"
       - "traefik.http.routers.mamajula-https.service=mamajula-service"
       - "traefik.http.routers.mamajula-https.priority=1000"
 
       # ===== Router HTTP -> redirect 301 HTTPS =====
       - "traefik.http.routers.mamajula-http.entrypoints=web"
-      - "traefik.http.routers.mamajula-http.rule=Host(`teste.mamajula.com.br`)"
+      - "traefik.http.routers.mamajula-http.rule=Host(`teste.mamajula.com.br`) || Host(`www.teste.mamajula.com.br`)"
       - "traefik.http.routers.mamajula-http.middlewares=mamajula-redirect"
       - "traefik.http.routers.mamajula-http.priority=1000"
       - "traefik.http.middlewares.mamajula-redirect.redirectscheme.scheme=https"
@@ -58,8 +59,8 @@ networks:
   # 🔑 REDE mamajula: agora o STACK DA APLICAÇÃO TAMBÉM cria se não existir!
   #    Não precisa mais criar no Portainer manualmente. Não precisa mais de external.
   #    Qualquer stack que subir primeiro cria a rede; o outro conecta.
-  mamajula:
-    name: mamajula
+  network_public:
+    name: network_public
     driver: bridge
     driver_opts:
       com.docker.network.bridge.name: "br-mamajula"
