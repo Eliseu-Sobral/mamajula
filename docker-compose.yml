@@ -37,7 +37,7 @@ services:
       - "traefik.http.routers.mamajula-https.entrypoints=websecure"
       - "traefik.http.routers.mamajula-https.rule=Host(`teste.mamajula.com.br`)"
       - "traefik.http.routers.mamajula-https.tls=true"
-      - "traefik.http.routers.mamajula-https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.mamajula-https.tls.certresolver=leresolver"
       - "traefik.http.routers.mamajula-https.tls.domains[0].main=teste.mamajula.com.br"
       - "traefik.http.routers.mamajula-https.service=mamajula-service"
       - "traefik.http.routers.mamajula-https.priority=100"
