@@ -11,14 +11,7 @@ services:
     restart: unless-stopped
 
     networks:
-      - network_public
-
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/healthz || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
+      - portainer_default
 
     logging:
       driver: "json-file"
@@ -27,38 +20,19 @@ services:
         max-file: "5"
 
     labels:
-      # ---- Traefik habilitado para esse serviço ----
+      # ====== Padrão IDÊNTICO dos seus outros projetos (evolution_v2) ======
       - "traefik.enable=true"
-      - "traefik.docker.network=network_public"
-
-      # ===== Router HTTPS =====
-      - "traefik.http.routers.mamajula-https.entrypoints=websecure"
-      - "traefik.http.routers.mamajula-https.rule=Host(`teste.mamajula.com.br`) || Host(`www.teste.mamajula.com.br`)"
-      - "traefik.http.routers.mamajula-https.tls=true"
-      - "traefik.http.routers.mamajula-https.tls.certresolver=leresolver"
-      - "traefik.http.routers.mamajula-https.tls.domains[0].main=teste.mamajula.com.br"
-      - "traefik.http.routers.mamajula-https.tls.domains[0].sans=www.teste.mamajula.com.br"
-      - "traefik.http.routers.mamajula-https.service=mamajula-service"
-      - "traefik.http.routers.mamajula-https.priority=1000"
-
-      # ===== Router HTTP -> redirect 301 HTTPS =====
-      - "traefik.http.routers.mamajula-http.entrypoints=web"
-      - "traefik.http.routers.mamajula-http.rule=Host(`teste.mamajula.com.br`) || Host(`www.teste.mamajula.com.br`)"
-      - "traefik.http.routers.mamajula-http.middlewares=mamajula-redirect"
-      - "traefik.http.routers.mamajula-http.priority=1000"
-      - "traefik.http.middlewares.mamajula-redirect.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.mamajula-redirect.redirectscheme.permanent=true"
-
-      # ===== Serviço: porta 80 do nginx =====
-      - "traefik.http.services.mamajula-service.loadbalancer.server.port=80"
-      - "traefik.http.services.mamajula-service.loadbalancer.server.scheme=http"
-      - "traefik.http.services.mamajula-service.loadbalancer.passHostHeader=true"
-      - "traefik.http.services.mamajula-service.loadbalancer.server.transport.respondingTimeouts.readTimeout=60"
+      - "traefik.http.routers.mamajula.rule=Host(`teste.mamajula.com.br`) || Host(`www.teste.mamajula.com.br`)"
+      - "traefik.http.routers.mamajula.entrypoints=websecure"
+      - "traefik.http.routers.mamajula.tls=true"
+      - "traefik.http.routers.mamajula.tls.certresolver=leresolver"
+      - "traefik.docker.network=portainer_default"
+      - "traefik.http.services.mamajula.loadbalancer.server.port=80"
+      - "traefik.http.services.mamajula.loadbalancer.passHostHeader=true"
 
 networks:
-  # 🔑 Usa a rede do seu traefik antigo (já existente, criada manualmente/fora do compose).
-  #    Declaramos SOMENTE como external=true + name, para o Compose não tentar recriar
-  #    (evita o erro "has incorrect label com.docker.compose.network set to ''").
-  network_public:
+  # 🔑 Usa a REDE REAL onde o seu traefik antigo está (a mesma dos seus outros projetos!)
+  #    external=true só conecta, não tenta recriar.
+  portainer_default:
     external: true
-    name: network_public
+    name: portainer_default
