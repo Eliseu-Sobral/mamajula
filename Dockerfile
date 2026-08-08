@@ -40,9 +40,8 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Informa que o container expõe a porta 80 (Traefik vai se conectar nela)
 EXPOSE 80
 
-# Healthcheck: testa se o index.html é servido com 200
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q --spider http://127.0.0.1:80/ || exit 1
+# Desativa qualquer HEALTHCHECK (de imagem/compose tem healthcheck; prefere Status = Running
+HEALTHCHECK NONE
 
 # nginx rodando em foreground (padrão da imagem)
 CMD ["nginx", "-g", "daemon off;"]
