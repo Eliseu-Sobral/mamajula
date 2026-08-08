@@ -20,23 +20,26 @@ services:
         max-file: "5"
 
     labels:
-      # ====== Padrão IDÊNTICO dos seus outros projetos (evolution_v2) ======
-      # Router 1: teste.mamajula.com.br
+      # =====================================================
+      # Padrão IDÊNTICO do seu projeto evolution_v2
+      # - 1 único domínio (simplifica; adicionamos www DEPOIS que funcionar).
+      # - Nome de router = mamajula ; Nome de service = mamajula (evita bugs).
+      # - TODAS as labels EXPLÍCITAS (nada de "será deduzido").
+      # =====================================================
       - "traefik.enable=true"
-      - "traefik.http.routers.mamajula.rule=Host(`teste.mamajula.com.br`)"
+      - "traefik.docker.network=portainer_default"
+
+      # ---------- Router: teste.mamajula.com.br ----------
       - "traefik.http.routers.mamajula.entrypoints=websecure"
+      - "traefik.http.routers.mamajula.rule=Host(`teste.mamajula.com.br`)"
+      - "traefik.http.routers.mamajula.service=mamajula"
       - "traefik.http.routers.mamajula.tls=true"
       - "traefik.http.routers.mamajula.tls.certresolver=leresolver"
-      - "traefik.docker.network=portainer_default"
-      - "traefik.http.services.mamajula.loadbalancer.server.port=80"
-      - "traefik.http.services.mamajula.loadbalancer.passHostHeader=true"
 
-      # Router 2: www.teste.mamajula.com.br (router separado, mesmo service — evita bug do || em múltiplos Hosts)
-      - "traefik.http.routers.mamajula-www.rule=Host(`www.teste.mamajula.com.br`)"
-      - "traefik.http.routers.mamajula-www.entrypoints=websecure"
-      - "traefik.http.routers.mamajula-www.tls=true"
-      - "traefik.http.routers.mamajula-www.tls.certresolver=leresolver"
-      - "traefik.http.routers.mamajula-www.service=mamajula"
+      # ---------- Service: mamajula ----------
+      - "traefik.http.services.mamajula.loadbalancer.server.port=80"
+      - "traefik.http.services.mamajula.loadbalancer.server.scheme=http"
+      - "traefik.http.services.mamajula.loadbalancer.passHostHeader=true"
 
 networks:
   # 🔑 Usa a REDE REAL onde o seu traefik antigo está (a mesma dos seus outros projetos!)
