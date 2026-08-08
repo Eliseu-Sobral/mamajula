@@ -55,6 +55,15 @@ services:
       - "traefik.http.services.mamajula-service.loadbalancer.server.transport.respondingTimeouts.readTimeout=60"
 
 networks:
+  # 🔑 REDE mamajula: agora o STACK DA APLICAÇÃO TAMBÉM cria se não existir!
+  #    Não precisa mais criar no Portainer manualmente. Não precisa mais de external.
+  #    Qualquer stack que subir primeiro cria a rede; o outro conecta.
   mamajula:
-    external: true
     name: mamajula
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: "br-mamajula"
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+    attachable: true
+    internal: false
