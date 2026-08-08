@@ -14,7 +14,7 @@ services:
     user: "101:101"
 
     networks:
-      - traefik-public
+      - mamajula
 
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:80/healthz || exit 1"]
@@ -33,7 +33,7 @@ services:
       # ---- Traefik habilitado para esse serviço ----
       - "traefik.enable=true"
       # ---- Liga ao entrypoint websecure (HTTPS :443) ----
-      - "traefik.docker.network=traefik-public"
+      - "traefik.docker.network=mamajula"
       - "traefik.http.routers.mamajula-https.entrypoints=websecure"
       - "traefik.http.routers.mamajula-https.rule=Host(`teste.mamajula.com.br`)"
       - "traefik.http.routers.mamajula-https.tls=true"
@@ -54,6 +54,6 @@ services:
       - "traefik.http.services.mamajula-service.loadbalancer.server.scheme=http"
 
 networks:
-  traefik-public:
+  mamajula:
     external: true
-    name: traefik-public
+    name: mamajula

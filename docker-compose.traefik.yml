@@ -20,7 +20,7 @@ services:
       - "traefik-acme:/letsencrypt"
 
     networks:
-      - traefik-public
+      - mamajula
 
     command:
       # ===== Globais =====
@@ -45,7 +45,7 @@ services:
       - "--providers.docker=true"
       - "--providers.docker.endpoint=unix:///var/run/docker.sock"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=traefik-public"
+      - "--providers.docker.network=mamajula"
       - "--providers.docker.swarmmode=false"
 
       # ===== Certificate Resolver: Let's Encrypt (HTTP challenge) =====
@@ -75,6 +75,6 @@ volumes:
     name: traefik-acme
 
 networks:
-  traefik-public:
+  mamajula:
     external: true
-    name: traefik-public
+    name: mamajula
