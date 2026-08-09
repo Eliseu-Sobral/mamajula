@@ -23,26 +23,26 @@ services:
       # =====================================================
       # Padrão IDÊNTICO do seu projeto evolution_v2
       # - 1 único domínio (simplifica; adicionamos www DEPOIS que funcionar).
-      # - Nome de router = mamajula ; Nome de service = mamajula (evita bugs).
-      # - FORMATO HOST: SEM NENHUMA ASPA / SEM CRASE — evita bug do Portainer Web Editor
-      #   que automaticamente converte crases (`) em aspas simples/duplas no campo TEXTO.
-      # - Label redundante traefik.port (legado, funciona sempre se o service falhar).
+      # - FORMATO HOST OBRIGATÓRIO (igual a TODOS os seus apps que funcionam!):
+      #   Host(`dominio.com.br`)    ← CRASES DENTRO.
+      #   Sem crases = Traefik interpreta dominio como VARIAVEL e dá "is not defined" / disabled.
+      # - Label redundante traefik.port (legado).
       # =====================================================
-      - "traefik.enable=true"
-      - "traefik.docker.network=portainer_default"
-      - "traefik.port=80"
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=portainer_default'
+      - 'traefik.port=80'
 
       # ---------- Router: teste.mamajula.com.br ----------
-      - "traefik.http.routers.mamajula.entrypoints=websecure"
-      - "traefik.http.routers.mamajula.rule=Host(teste.mamajula.com.br)"
-      - "traefik.http.routers.mamajula.service=mamajula"
-      - "traefik.http.routers.mamajula.tls=true"
-      - "traefik.http.routers.mamajula.tls.certresolver=leresolver"
+      - 'traefik.http.routers.mamajula.entrypoints=websecure'
+      - 'traefik.http.routers.mamajula.rule=Host(`teste.mamajula.com.br`)'
+      - 'traefik.http.routers.mamajula.service=mamajula'
+      - 'traefik.http.routers.mamajula.tls=true'
+      - 'traefik.http.routers.mamajula.tls.certresolver=leresolver'
 
       # ---------- Service: mamajula ----------
-      - "traefik.http.services.mamajula.loadbalancer.server.port=80"
-      - "traefik.http.services.mamajula.loadbalancer.server.scheme=http"
-      - "traefik.http.services.mamajula.loadbalancer.passHostHeader=true"
+      - 'traefik.http.services.mamajula.loadbalancer.server.port=80'
+      - 'traefik.http.services.mamajula.loadbalancer.server.scheme=http'
+      - 'traefik.http.services.mamajula.loadbalancer.passHostHeader=true'
 
 networks:
   # 🔑 Usa a REDE REAL onde o seu traefik antigo está (a mesma dos seus outros projetos!)
