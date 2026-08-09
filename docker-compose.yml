@@ -24,14 +24,17 @@ services:
       # Padrão IDÊNTICO do seu projeto evolution_v2
       # - 1 único domínio (simplifica; adicionamos www DEPOIS que funcionar).
       # - Nome de router = mamajula ; Nome de service = mamajula (evita bugs).
-      # - TODAS as labels EXPLÍCITAS (nada de "será deduzido").
+      # - FORMATO HOST: SEM NENHUMA ASPA / SEM CRASE — evita bug do Portainer Web Editor
+      #   que automaticamente converte crases (`) em aspas simples/duplas no campo TEXTO.
+      # - Label redundante traefik.port (legado, funciona sempre se o service falhar).
       # =====================================================
       - "traefik.enable=true"
       - "traefik.docker.network=portainer_default"
+      - "traefik.port=80"
 
       # ---------- Router: teste.mamajula.com.br ----------
       - "traefik.http.routers.mamajula.entrypoints=websecure"
-      - "traefik.http.routers.mamajula.rule=Host(`teste.mamajula.com.br`)"
+      - "traefik.http.routers.mamajula.rule=Host(teste.mamajula.com.br)"
       - "traefik.http.routers.mamajula.service=mamajula"
       - "traefik.http.routers.mamajula.tls=true"
       - "traefik.http.routers.mamajula.tls.certresolver=leresolver"
