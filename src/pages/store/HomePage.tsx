@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Sparkles, Truck, ShieldCheck, Tag, ArrowRight, Check, X, Loader2, BellOff } from 'lucide-react';
+import { Sparkles, Truck, ShieldCheck, Tag, ArrowRight, Check, X, Loader2, BellOff, Bell } from 'lucide-react';
 import { supabase, type Product, type Category } from '@/lib/supabase';
 import { isPushSupported, isSubscribed, subscribeUser, unsubscribeUser, loadPushConfig } from '@/lib/push';
 import ProductCard from '@/components/store/ProductCard';
@@ -11,6 +11,25 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [pushState, setPushState] = useState<'idle' | 'loading' | 'subscribed' | 'not-supported' | 'error'>('idle');
   const [pushMsg, setPushMsg] = useState<string>('');
+  const [dismissed, setDismissed] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const wasDismissed = localStorage.getItem('mamajula_push_dismissed') === '1';
+      setDismissed(wasDismissed);
+    } catch {
+      setDismissed(false);
+    }
+  }, []);
+
+  const dismissPushBanner = () => {
+    try {
+      localStorage.setItem('mamajula_push_dismissed', '1');
+    } catch {
+      /* ignore */
+    }
+    setDismissed(true);
+  };
 
   useEffect(() => {
     (async () => {
@@ -63,6 +82,64 @@ export default function HomePage() {
 
   return (
     <div className="page-enter">
+      {/* ===== Banner FIXO de Push (sticky top, sempre visível até o usuário ativar ou fechar) ===== */}
+      {pushState !== 'subscribed' && pushState !== 'not-supported' && !dismissed && (
+        <div className="sticky top-0 z-50 w-full bg-gradient-to-r from-primary-700 via-primary-600 to-primary-700 text-white shadow-xl">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-2.5 sm:py-3 flex items-center gap-3">
+            <div className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">
+              <Bell className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-display font-semibold text-sm sm:text-base leading-tight">
+                🔔 Receba ofertas exclusivas em primeira mão
+              </p>
+              <p className="text-primary-100 text-xs sm:text-sm truncate max-w-2xl">
+                Ative as notificações e ganhe desconto de 10% na primeira compra!
+              </p>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={handleTogglePush}
+                disabled={pushState === 'loading'}
+                className={`inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-semibold text-xs sm:text-sm transition-all duration-300 shadow-md ${
+                  pushState === 'loading'
+                    ? 'bg-neutral-400 text-white cursor-wait'
+                    : pushState === 'error'
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-white text-primary-700 hover:bg-cream-100 hover:scale-105'
+                }`}
+              >
+                {pushState === 'loading' ? (
+                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
+                ) : pushState === 'error' ? (
+                  <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                )}
+                {pushState === 'error'
+                  ? (pushMsg || 'Erro').slice(0, 18)
+                  : pushState === 'loading'
+                  ? 'Ativando...'
+                  : 'Ativar agora'}
+              </button>
+              <button
+                onClick={dismissPushBanner}
+                type="button"
+                aria-label="Fechar aviso de notificações"
+                className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 hover:bg-white/20 text-white/90 hover:text-white flex items-center justify-center transition"
+              >
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
+          </div>
+          {pushState === 'error' && pushMsg && (
+            <div className="border-t border-white/15 bg-red-500/20 px-4 sm:px-8 py-2">
+              <p className="text-sm text-red-100 font-medium">{pushMsg}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-hero-gradient">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
@@ -175,59 +252,6 @@ export default function HomePage() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* CTA banner */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="relative overflow-hidden rounded-xl3 bg-primary-700 text-white">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-800 to-primary-500 opacity-90" />
-          <div className="relative px-8 py-12 md:py-16 text-center">
-            <h2 className="font-display text-3xl md:text-4xl font-semibold mb-3">
-              Receba ofertas exclusivas
-            </h2>
-            <p className="text-primary-100 max-w-lg mx-auto mb-6">
-              Ative as notificações e seja avisado primeiro quando novos produtos e promoções chegarem.
-            </p>
-            <button
-              onClick={handleTogglePush}
-              disabled={pushState === 'loading' || pushState === 'not-supported'}
-              className={`btn-primary inline-flex items-center gap-2 ${
-                pushState === 'subscribed'
-                  ? 'bg-green-500 text-white hover:bg-green-600'
-                  : pushState === 'not-supported'
-                  ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
-                  : pushState === 'error'
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-white text-primary-700 hover:bg-cream-100'
-              }`}
-            >
-              {pushState === 'loading' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : pushState === 'subscribed' ? (
-                <Check className="w-4 h-4" />
-              ) : pushState === 'not-supported' ? (
-                <BellOff className="w-4 h-4" />
-              ) : pushState === 'error' ? (
-                <X className="w-4 h-4" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-              {pushState === 'subscribed'
-                ? 'Inscrição ativada'
-                : pushState === 'not-supported'
-                ? 'Notificações não suportadas'
-                : pushState === 'error'
-                ? pushMsg || 'Erro'
-                : 'Ativar Notificações'}
-            </button>
-            {pushMsg && pushState !== 'error' && pushState !== 'loading' && (
-              <p className="mt-3 text-sm text-primary-100">{pushMsg}</p>
-            )}
-            {pushState === 'error' && pushMsg && (
-              <p className="mt-3 text-sm text-red-200">{pushMsg}</p>
-            )}
-          </div>
-        </div>
       </section>
     </div>
   );
